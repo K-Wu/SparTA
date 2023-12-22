@@ -8,3 +8,5 @@ _build
 generated
 test/bench/*/latency.csv
 test/bench/*/latency.png
+*.json
+examples/MNIST/

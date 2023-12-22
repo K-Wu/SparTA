@@ -8,7 +8,15 @@ from typing import Any, Dict, List, Optional
 import torch
 import pytest
 
-from sparta.nn import tune, SparseLinear, SparseBatchMatMul, SparseSoftmax, SparseAttention
+from sparta.nn import (
+    tune,
+    SparseLinear,
+    SparseBatchMatMul,
+    SparseSoftmax,
+    SparseAttention,
+)
+
+import sparta  # Set torch default stream
 
 
 def debug_tune(
@@ -28,7 +36,7 @@ def debug_tune(
             module=module,
             sample_inputs=sample_inputs,
             sample_grads=sample_grads,
-            algo='grid',
+            algo="grid",
             max_trials=sys.maxsize,
             backward_weight=backward_weight,
             verbose=False,
@@ -47,10 +55,14 @@ def test_tune_sparse_linear(
     in_dims: int = 128,
     out_dims: int = 128,
 ):
-    dense_linear = torch.nn.Linear(in_dims, out_dims, device='cuda')
-    sample_input = torch.zeros((batch_size, in_dims), dtype=torch.float32, device='cuda')
-    sample_grad = torch.zeros((batch_size, out_dims), dtype=torch.float32, device='cuda')
-    mask = torch.ones((out_dims, in_dims), dtype=torch.uint8, device='cuda')
+    dense_linear = torch.nn.Linear(in_dims, out_dims, device="cuda")
+    sample_input = torch.zeros(
+        (batch_size, in_dims), dtype=torch.float32, device="cuda"
+    )
+    sample_grad = torch.zeros(
+        (batch_size, out_dims), dtype=torch.float32, device="cuda"
+    )
+    mask = torch.ones((out_dims, in_dims), dtype=torch.uint8, device="cuda")
 
     sparse_linear = SparseLinear(dense_linear, weight_mask=mask)
     if backward:
@@ -64,7 +76,7 @@ def test_tune_sparse_linear(
 @pytest.mark.parametrize("backward", [False, True])
 def test_tune_sparse_matmul(
     backward: bool,
-    mode: str = 'dds',
+    mode: str = "dds",
     batch_size: int = 4,
     M: int = 128,
     K: int = 128,
@@ -78,25 +90,25 @@ def test_tune_sparse_matmul(
     C_shape = (M, N)
 
     torch.manual_seed(2022)
-    A = torch.zeros(size=(batch_size, *A_shape), device='cuda')
-    B = torch.zeros(size=(batch_size, *B_shape), device='cuda')
-    grad_C = torch.zeros(size=(batch_size, *C_shape), device='cuda')
+    A = torch.zeros(size=(batch_size, *A_shape), device="cuda")
+    B = torch.zeros(size=(batch_size, *B_shape), device="cuda")
+    grad_C = torch.zeros(size=(batch_size, *C_shape), device="cuda")
 
     matmul_args = {
-        'transpose_A': trans_A,
-        'transpose_B': trans_B,
-        'compressed': compressed,
+        "transpose_A": trans_A,
+        "transpose_B": trans_B,
+        "compressed": compressed,
     }
 
-    if mode == 'sdd':
-        A_mask = torch.ones(A_shape, dtype=torch.uint8, device='cuda')
-        matmul_args['A_mask'] = A_mask
-    elif mode == 'dsd':
-        B_mask = torch.ones(B_shape, dtype=torch.uint8, device='cuda')
-        matmul_args['B_mask'] = B_mask
+    if mode == "sdd":
+        A_mask = torch.ones(A_shape, dtype=torch.uint8, device="cuda")
+        matmul_args["A_mask"] = A_mask
+    elif mode == "dsd":
+        B_mask = torch.ones(B_shape, dtype=torch.uint8, device="cuda")
+        matmul_args["B_mask"] = B_mask
     else:
-        C_mask = torch.ones(C_shape, dtype=torch.uint8, device='cuda')
-        matmul_args['C_mask'] = C_mask
+        C_mask = torch.ones(C_shape, dtype=torch.uint8, device="cuda")
+        matmul_args["C_mask"] = C_mask
 
     sparse_matmul = SparseBatchMatMul(**matmul_args)
     if backward:
@@ -116,12 +128,18 @@ def test_tune_sparse_softmax(
     batch_size: Optional[int] = None,
 ):
     torch.manual_seed(2022)
-    mask = torch.ones((head_num, dims), dtype=torch.uint8, device='cuda')
-    shape = (head_num, dims) if batch_size is None else (batch_size, head_num, dims)
-    sample_input = torch.zeros(shape, dtype=torch.float32, device='cuda')
-    sample_grad = torch.zeros(shape, dtype=torch.float32, device='cuda')
+    mask = torch.ones((head_num, dims), dtype=torch.uint8, device="cuda")
+    shape = (
+        (head_num, dims)
+        if batch_size is None
+        else (batch_size, head_num, dims)
+    )
+    sample_input = torch.zeros(shape, dtype=torch.float32, device="cuda")
+    sample_grad = torch.zeros(shape, dtype=torch.float32, device="cuda")
 
-    sparse_softmax = SparseSoftmax(mask=mask, temperature=dims, compressed=compressed)
+    sparse_softmax = SparseSoftmax(
+        mask=mask, temperature=dims, compressed=compressed
+    )
     if backward:
         count = debug_tune(sparse_softmax, [sample_input], [sample_grad])
         assert count == (5 * 4 * 5) * 2
@@ -139,7 +157,7 @@ def test_tune_sparse_attention(
     E: int = 128,
 ):
     torch.manual_seed(2022)
-    mask = torch.ones((Nt, Ns), dtype=torch.uint8, device='cuda')
+    mask = torch.ones((Nt, Ns), dtype=torch.uint8, device="cuda")
     query = torch.rand(size=(batch_size, Nt, E)).cuda()
     key = torch.rand(size=(batch_size, Ns, E)).cuda()
     value = torch.rand(size=(batch_size, Ns, E)).cuda()

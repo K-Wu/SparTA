@@ -7,6 +7,8 @@ import pytest
 from sparta.tesa import get_bcs_function
 from sparta.testing import block_mask
 
+import sparta  # Set torch default stream
+
 
 def reduce_mask_ref(mask: torch.Tensor, BH: int, BW: int):
     H, W = mask.shape
@@ -38,13 +40,20 @@ def test_bcsr(
     torch.testing.assert_close(BCSR_indexes.get_block_mask(), reduced_mask)
 
     # Test convert & inverse functions
-    dense = torch.rand((batch_size, H, W), dtype=torch.float32, device='cuda') * mask
+    dense = (
+        torch.rand((batch_size, H, W), dtype=torch.float32, device="cuda")
+        * mask
+    )
     sparse_val = BCSR_indexes.convert(dense)
     torch.testing.assert_close(BCSR_indexes.inverse(sparse_val), dense)
 
     # Test sum function
-    torch.testing.assert_close(BCSR_indexes.sum(sparse_val, axis=-1), dense.sum(-1))
-    torch.testing.assert_close(BCSR_indexes.sum(sparse_val, axis=-2), dense.sum(-2))
+    torch.testing.assert_close(
+        BCSR_indexes.sum(sparse_val, axis=-1), dense.sum(-1)
+    )
+    torch.testing.assert_close(
+        BCSR_indexes.sum(sparse_val, axis=-2), dense.sum(-2)
+    )
 
 
 @pytest.mark.parametrize("BH", [4, 8, 16, 32, 64, 128])
@@ -68,13 +77,20 @@ def test_bcsc(
     torch.testing.assert_close(BCSC_indexes.get_block_mask(), reduced_mask)
 
     # Test convert & inverse functions
-    dense = torch.rand((batch_size, H, W), dtype=torch.float32, device='cuda') * mask
+    dense = (
+        torch.rand((batch_size, H, W), dtype=torch.float32, device="cuda")
+        * mask
+    )
     sparse_val = BCSC_indexes.convert(dense)
     torch.testing.assert_close(BCSC_indexes.inverse(sparse_val), dense)
 
     # Test sum function
-    torch.testing.assert_close(BCSC_indexes.sum(sparse_val, axis=-1), dense.sum(-1))
-    torch.testing.assert_close(BCSC_indexes.sum(sparse_val, axis=-2), dense.sum(-2))
+    torch.testing.assert_close(
+        BCSC_indexes.sum(sparse_val, axis=-1), dense.sum(-1)
+    )
+    torch.testing.assert_close(
+        BCSC_indexes.sum(sparse_val, axis=-2), dense.sum(-2)
+    )
 
 
 @pytest.mark.parametrize("BH", [4, 8, 16, 32, 64, 128])
@@ -99,18 +115,27 @@ def test_bcsrc(
 
     # Test BCSC indexes and block index
     BCSR_row_idx = BCSRC_indexes.BCSR_idx.bitwise_right_shift(16)
-    BCSR_col_idx = BCSRC_indexes.BCSR_idx.bitwise_and(0xffff)
-    BCSC_row_idx = BCSRC_indexes.BCSC_idx.to(torch.int32).bitwise_and(0xffff)
-    BCSC_col_idx = BCSRC_indexes.BCSC_idx.to(torch.int32).bitwise_right_shift(16)
+    BCSR_col_idx = BCSRC_indexes.BCSR_idx.bitwise_and(0xFFFF)
+    BCSC_row_idx = BCSRC_indexes.BCSC_idx.to(torch.int32).bitwise_and(0xFFFF)
+    BCSC_col_idx = BCSRC_indexes.BCSC_idx.to(torch.int32).bitwise_right_shift(
+        16
+    )
     BCSC_block_index = BCSRC_indexes.BCSC_idx.bitwise_right_shift(32)
     torch.testing.assert_close(BCSR_row_idx[BCSC_block_index], BCSC_row_idx)
     torch.testing.assert_close(BCSR_col_idx[BCSC_block_index], BCSC_col_idx)
 
     # Test convert & inverse functions
-    dense = torch.rand((batch_size, H, W), dtype=torch.float32, device='cuda') * mask
+    dense = (
+        torch.rand((batch_size, H, W), dtype=torch.float32, device="cuda")
+        * mask
+    )
     sparse_val = BCSRC_indexes.convert(dense)
     torch.testing.assert_close(BCSRC_indexes.inverse(sparse_val), dense)
 
     # Test sum function
-    torch.testing.assert_close(BCSRC_indexes.sum(sparse_val, axis=-1), dense.sum(-1))
-    torch.testing.assert_close(BCSRC_indexes.sum(sparse_val, axis=-2), dense.sum(-2))
+    torch.testing.assert_close(
+        BCSRC_indexes.sum(sparse_val, axis=-1), dense.sum(-1)
+    )
+    torch.testing.assert_close(
+        BCSRC_indexes.sum(sparse_val, axis=-2), dense.sum(-2)
+    )

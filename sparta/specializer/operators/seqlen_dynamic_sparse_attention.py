@@ -5,11 +5,12 @@ from typing import Optional
 
 import torch
 
+import sparta  # Set torch default stream
+
 import seqlen_dynamic_sparse_attention_cpp
 
 
 class SeqlenDynamicSparseAttentionFunction(torch.autograd.Function):
-
     @staticmethod
     def forward(
         ctx: torch.autograd.function.FunctionCtx,
@@ -18,10 +19,12 @@ class SeqlenDynamicSparseAttentionFunction(torch.autograd.Function):
         V: torch.Tensor,
         inter_result: torch.Tensor,
         seqlens: torch.Tensor,
-        H: int
+        H: int,
     ):
         # ctx.save_for_backward()
-        return seqlen_dynamic_sparse_attention_cpp.forward(Q, K, V, inter_result, seqlens, H)
+        return seqlen_dynamic_sparse_attention_cpp.forward(
+            Q, K, V, inter_result, seqlens, H
+        )
 
     @staticmethod
     def backward(ctx, *grad_outputs):
@@ -52,7 +55,9 @@ class SeqlenDynamicSparseAttention(torch.nn.Module):
     def __init__(self, global_mode=True):
         super().__init__()
         self.global_mode = global_mode
-        self._inter_result: Optional[torch.Tensor] = None  # Tensor to store the internal results
+        self._inter_result: Optional[
+            torch.Tensor
+        ] = None  # Tensor to store the internal results
 
     @staticmethod
     def set_global_seqlens(seqlens: torch.Tensor):
@@ -71,7 +76,7 @@ class SeqlenDynamicSparseAttention(torch.nn.Module):
         self,
         Q: torch.Tensor,
         K: torch.Tensor,
-        V: torch.Tensor, 
+        V: torch.Tensor,
         seqlens: Optional[torch.Tensor] = None,
     ):
         """Dynamic sequence-length sparse attention forward function.
@@ -98,11 +103,18 @@ class SeqlenDynamicSparseAttention(torch.nn.Module):
 
         B, H, N, E = Q.shape
         assert B == seqlens.size(0)
-        assert N % 32 == 0, 'max sequence length should be divisible by 32'
-        assert E % 32 == 0, 'embed dimension size should be divisible by 32'
+        assert N % 32 == 0, "max sequence length should be divisible by 32"
+        assert E % 32 == 0, "embed dimension size should be divisible by 32"
 
         inter_result_size = B * H * N * N
-        if self._inter_result is None or self._inter_result.numel() < inter_result_size:
-            self._inter_result = torch.zeros(inter_result_size, dtype=torch.float32, device=Q.device)
+        if (
+            self._inter_result is None
+            or self._inter_result.numel() < inter_result_size
+        ):
+            self._inter_result = torch.zeros(
+                inter_result_size, dtype=torch.float32, device=Q.device
+            )
 
-        return SeqlenDynamicSparseAttentionFunction.apply(Q, K, V, self._inter_result, seqlens, H)
+        return SeqlenDynamicSparseAttentionFunction.apply(
+            Q, K, V, self._inter_result, seqlens, H
+        )

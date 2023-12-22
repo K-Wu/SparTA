@@ -5,8 +5,13 @@ from typing import Any, Dict, List, Optional
 
 import torch
 
+import sparta  # Set torch default stream
+
 from sparta.specializer.operators import OperatorBase
-from sparta.specializer.funtional import SparseBatchMatMulCtx, SparseBatchMatMulFunc
+from sparta.specializer.funtional import (
+    SparseBatchMatMulCtx,
+    SparseBatchMatMulFunc,
+)
 
 
 class SparseLinear(OperatorBase):
@@ -77,17 +82,25 @@ class SparseLinear(OperatorBase):
         self.bias = raw_module.bias
 
         if input_mask is not None:
-            self._sparse_ctx = SparseBatchMatMulCtx('sdd', False, True, biased, False)
+            self._sparse_ctx = SparseBatchMatMulCtx(
+                "sdd", False, True, biased, False
+            )
             M = input_mask.shape[0]
         elif weight_mask is not None:
-            self._sparse_ctx = SparseBatchMatMulCtx('dsd', False, True, biased, True)
+            self._sparse_ctx = SparseBatchMatMulCtx(
+                "dsd", False, True, biased, True
+            )
         elif output_mask is not None:
-            self._sparse_ctx = SparseBatchMatMulCtx('dds', False, True, biased, False)
+            self._sparse_ctx = SparseBatchMatMulCtx(
+                "dds", False, True, biased, False
+            )
             M = output_mask.shape[0]
         else:
-            raise ValueError(f'expected a sparse mask on input / weight / output')
+            raise ValueError(
+                f"expected a sparse mask on input / weight / output"
+            )
 
-        self._shape = {'batch_size': 1, 'M': M, 'K': K, 'N': N}
+        self._shape = {"batch_size": 1, "M": M, "K": K, "N": N}
         self.update_mask(input_mask, weight_mask, output_mask)
 
     def update_mask(
@@ -96,51 +109,73 @@ class SparseLinear(OperatorBase):
         weight_mask: Optional[torch.Tensor] = None,
         output_mask: Optional[torch.Tensor] = None,
     ):
-        if sum(map(lambda x: x is not None, [input_mask, weight_mask, output_mask])) > 1:
-            raise ValueError(f'linear operators with multiple sparse masks are not supported')
+        if (
+            sum(
+                map(
+                    lambda x: x is not None,
+                    [input_mask, weight_mask, output_mask],
+                )
+            )
+            > 1
+        ):
+            raise ValueError(
+                f"linear operators with multiple sparse masks are not"
+                f" supported"
+            )
 
-        M, K, N = self._shape['M'], self._shape['K'], self._shape['N']
+        M, K, N = self._shape["M"], self._shape["K"], self._shape["N"]
 
-        def check_mask_shape(mask: torch.Tensor, name: str, H: Optional[int], W: Optional[int]):
+        def check_mask_shape(
+            mask: torch.Tensor, name: str, H: Optional[int], W: Optional[int]
+        ):
             if H is None:
                 check_H = lambda x: True
-                H = '?'
+                H = "?"
             else:
                 check_H = lambda x: x == H
             if W is None:
                 check_W = lambda x: True
-                W = '?'
+                W = "?"
             else:
                 check_W = lambda x: x == W
-            err_msg = f'expected {name} mask shape ({H}, {W}), got {mask.shape}'
+            err_msg = (
+                f"expected {name} mask shape ({H}, {W}), got {mask.shape}"
+            )
             assert check_H(mask.shape[0]) and check_W(mask.shape[1]), err_msg
 
         if input_mask is not None:
-            check_mask_shape(input_mask, 'input', M, K)
-            self._set_mask({'A': input_mask})
+            check_mask_shape(input_mask, "input", M, K)
+            self._set_mask({"A": input_mask})
         elif weight_mask is not None:
-            check_mask_shape(weight_mask, 'weight', N, K)
-            self._set_mask({'B': weight_mask})
+            check_mask_shape(weight_mask, "weight", N, K)
+            self._set_mask({"B": weight_mask})
         elif output_mask is not None:
-            check_mask_shape(output_mask, 'output', M, N)
-            self._set_mask({'C': output_mask})
+            check_mask_shape(output_mask, "output", M, N)
+            self._set_mask({"C": output_mask})
         else:
-            raise ValueError(f'expected a sparse mask on input / weight / output')
+            raise ValueError(
+                f"expected a sparse mask on input / weight / output"
+            )
 
         if self.ready:
             self._update_parameters()
 
     def _read_sample_inputs(self, A: torch.Tensor):
-        M, K = self._shape['M'], self._shape['K']
+        M, K = self._shape["M"], self._shape["K"]
         if M is None:
-            assert K == A.shape[1], f'expect input shape (?, {K}), got {A.shape}'
-            self._shape['M'] = A.shape[0]
+            assert (
+                K == A.shape[1]
+            ), f"expect input shape (?, {K}), got {A.shape}"
+            self._shape["M"] = A.shape[0]
         else:
-            assert (M, K) == A.shape, f'expect input shape ({M}, {K}), got {A.shape}'
+            assert (
+                M,
+                K,
+            ) == A.shape, f"expect input shape ({M}, {K}), got {A.shape}"
 
     def _update_parameters(self):
         weight = self._raw_weight
-        weight_indexes = self.get_sparse_indexes('B')
+        weight_indexes = self.get_sparse_indexes("B")
         if weight_indexes is not None:
             weight = weight_indexes.convert(weight.detach())
         self.weight = torch.nn.Parameter(weight, requires_grad=True)

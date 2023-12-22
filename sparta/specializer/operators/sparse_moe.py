@@ -5,11 +5,12 @@ from typing import List
 
 import torch
 
+import sparta  # Set torch default stream
+
 import sparse_moe_cpp
 
 
 class DynamicSparseMoE(torch.nn.Module):
-
     def __init__(self, exp_modules: List[torch.nn.Linear]):
         super().__init__()
         self.num_exps = len(exp_modules)
@@ -20,11 +21,17 @@ class DynamicSparseMoE(torch.nn.Module):
             self.weight = torch.nn.Parameter(
                 torch.stack([exp.weight.T for exp in exp_modules]).contiguous()
             )
-        self.sparse_index = torch.zeros(self.num_exps, 4096, dtype=torch.int32, device=self.device)
-        self.expert_count = torch.zeros(self.num_exps, dtype=torch.int32, device=self.device)
+        self.sparse_index = torch.zeros(
+            self.num_exps, 4096, dtype=torch.int32, device=self.device
+        )
+        self.expert_count = torch.zeros(
+            self.num_exps, dtype=torch.int32, device=self.device
+        )
 
     def forward(self, tokens: torch.Tensor, exp_ids: torch.Tensor):
-        sparse_moe_cpp.convert_index(exp_ids, self.sparse_index, self.expert_count)
+        sparse_moe_cpp.convert_index(
+            exp_ids, self.sparse_index, self.expert_count
+        )
         return sparse_moe_cpp.forward(
             tokens,
             self.weight,

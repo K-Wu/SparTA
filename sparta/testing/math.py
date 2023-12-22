@@ -4,11 +4,13 @@
 import torch
 import numpy as np
 
+import sparta  # Set torch default stream
+
 
 def sparse_softmax_forward_reference(
     x: torch.Tensor,
     mask: torch.Tensor,
-    temperature: float = 1.,
+    temperature: float = 1.0,
 ) -> torch.Tensor:
     """Sparse softmax reference function. Masked input values are treated as negative infinity.
 
@@ -31,7 +33,7 @@ def sparse_softmax_backward_reference(
     grad: torch.Tensor,
     output: torch.Tensor,
     mask: torch.Tensor,
-    temperature: float = 1.,
+    temperature: float = 1.0,
 ) -> torch.Tensor:
     """Sparse softmax backward reference function.
 
@@ -73,7 +75,13 @@ def sparse_multi_head_attention_reference(
     """
     if np.isnan(temperature):
         temperature = np.sqrt(query.shape[-1])
-    high_dims = ''.join([chr(ord('a') + i) for i in range(len(query.shape) - 2)])
-    qk = torch.einsum(f'{high_dims}mk, {high_dims}nk -> {high_dims}mn', query, key)
+    high_dims = "".join(
+        [chr(ord("a") + i) for i in range(len(query.shape) - 2)]
+    )
+    qk = torch.einsum(
+        f"{high_dims}mk, {high_dims}nk -> {high_dims}mn", query, key
+    )
     sm = sparse_softmax_forward_reference(qk, mask, temperature)
-    return torch.einsum(f'{high_dims}mn, {high_dims}nk -> {high_dims}mk', sm, value)
+    return torch.einsum(
+        f"{high_dims}mn, {high_dims}nk -> {high_dims}mk", sm, value
+    )

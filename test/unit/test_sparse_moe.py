@@ -8,6 +8,8 @@ import pytest
 
 from sparta.nn import DynamicSparseMoE
 
+import sparta  # Set torch default stream
+
 
 def check_dtype(dtype: torch.dtype):
     major, minor = torch.cuda.get_device_capability()
@@ -21,7 +23,9 @@ def moe_reference(
     out_dims: int,
 ):
     n_exp = len(exp_modules)
-    out = torch.zeros((data.size(0), out_dims), dtype=data.dtype, device=data.device)
+    out = torch.zeros(
+        (data.size(0), out_dims), dtype=data.dtype, device=data.device
+    )
     for eid in range(n_exp):
         out[exp_ids == eid] = exp_modules[eid](data[exp_ids == eid])
     return out
@@ -46,15 +50,21 @@ def test_sparse_moe(
 
     torch.manual_seed(2022)
     exp_modules = [
-        torch.nn.Linear(in_dims, out_dims, bias=False, dtype=dtype, device='cuda')
+        torch.nn.Linear(
+            in_dims, out_dims, bias=False, dtype=dtype, device="cuda"
+        )
         for _ in range(num_exps)
     ]
     moe = DynamicSparseMoE(exp_modules)
 
     for random_seed in range(3):  # Test dynamic sparse
         torch.manual_seed(random_seed)
-        data = torch.rand((batch * seq_len, in_dims), dtype=dtype, device='cuda')
-        exp_ids = torch.randint(0, num_exps, (batch * seq_len, ), dtype=torch.int32, device='cuda')
+        data = torch.rand(
+            (batch * seq_len, in_dims), dtype=dtype, device="cuda"
+        )
+        exp_ids = torch.randint(
+            0, num_exps, (batch * seq_len,), dtype=torch.int32, device="cuda"
+        )
 
         out = moe(data, exp_ids)
         target_out = moe_reference(exp_modules, data, exp_ids, out_dims)

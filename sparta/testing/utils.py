@@ -5,6 +5,8 @@ from typing import Optional, Callable, List
 
 import torch
 
+import sparta  # Set torch default stream
+
 
 def profile(
     func: Callable,
@@ -35,12 +37,14 @@ def profile(
             func(*inputs)
         torch.cuda.synchronize()
         if cuda:
-            with torch.profiler.profile(activities=[torch.profiler.ProfilerActivity.CUDA]) as p:
+            with torch.profiler.profile(
+                activities=[torch.profiler.ProfilerActivity.CUDA]
+            ) as p:
                 for _ in range(num_iters):
                     func(*inputs)
             latency = 0
             for event in p.key_averages():
-                if event.key != 'cudaDeviceSynchronize':
+                if event.key != "cudaDeviceSynchronize":
                     latency += event.cuda_time * event.count
             latency /= num_iters * 1000
         else:
@@ -53,7 +57,7 @@ def profile(
             torch.cuda.synchronize()
             latency = start.elapsed_time(end) / num_iters
     except:
-        latency = float('inf')
+        latency = float("inf")
     return latency
 
 
@@ -68,6 +72,8 @@ def check(func: Callable, inputs: List, target_outputs: List):
     outputs = func(*inputs)
     if len(target_outputs) == 1:
         outputs = [outputs]
-    assert len(outputs) == len(target_outputs), f'expected {len(target_outputs)} outputs, got {len(outputs)}'
+    assert len(outputs) == len(
+        target_outputs
+    ), f"expected {len(target_outputs)} outputs, got {len(outputs)}"
     for output, target_output in zip(outputs, target_outputs):
         torch.testing.assert_close(output, target_output, atol=1e-4, rtol=1e-8)

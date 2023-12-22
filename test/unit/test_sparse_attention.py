@@ -9,37 +9,37 @@ import pytest
 from sparta.nn import SparseAttention
 from sparta.testing import block_mask, sparse_multi_head_attention_reference
 
+import sparta  # Set torch default stream
+
 
 def get_params():
-    matmul_kernel_names = [
-        'forward:C', 'backward:A', 'backward:B'
-    ]
+    matmul_kernel_names = ["forward:C", "backward:A", "backward:B"]
     matmul_config = {
         kernel_name: {
-            '_impl': 'sparta',
-            'BLOCK_SIZE_M_VALUE': 32,
-            'BLOCK_SIZE_K_VALUE': 32,
-            'BLOCK_SIZE_N_VALUE': 32,
-            'THREAD_SIZE_M_VALUE': 4,
-            'THREAD_SIZE_K_VALUE': 4,
-            'THREAD_SIZE_N_VALUE': 4,
+            "_impl": "sparta",
+            "BLOCK_SIZE_M_VALUE": 32,
+            "BLOCK_SIZE_K_VALUE": 32,
+            "BLOCK_SIZE_N_VALUE": 32,
+            "THREAD_SIZE_M_VALUE": 4,
+            "THREAD_SIZE_K_VALUE": 4,
+            "THREAD_SIZE_N_VALUE": 4,
         }
         for kernel_name in matmul_kernel_names
     }
-    softmax_kernel_names = ['forward:y', 'backward:x']
+    softmax_kernel_names = ["forward:y", "backward:x"]
     softmax_config = {
         kernel_name: {
-            '_impl': 'sparta',
-            'BLOCK_SIZE_H_VALUE': 32,
-            'BLOCK_SIZE_W_VALUE': 32,
-            'ROW_TILE_VALUE': 4,
+            "_impl": "sparta",
+            "BLOCK_SIZE_H_VALUE": 32,
+            "BLOCK_SIZE_W_VALUE": 32,
+            "ROW_TILE_VALUE": 4,
         }
         for kernel_name in softmax_kernel_names
     }
     return dict(
-        **{f'qk/{k}': v for k, v in matmul_config.items()},
-        **{f'sm/{k}': v for k, v in softmax_config.items()},
-        **{f'out/{k}': v for k, v in matmul_config.items()},
+        **{f"qk/{k}": v for k, v in matmul_config.items()},
+        **{f"sm/{k}": v for k, v in softmax_config.items()},
+        **{f"out/{k}": v for k, v in matmul_config.items()},
     )
 
 
@@ -56,11 +56,13 @@ def test_sparse_attention_operator(
     sparsity: float = 0.95,
 ):
     torch.manual_seed(2022)
-    mask = block_mask((Nt, Ns), block=granularity, sparsity=sparsity, device='cuda')
-    query = torch.rand(size=(H, Nt, E), device='cuda')
-    key = torch.rand(size=(H, Ns, E), device='cuda')
-    value = torch.rand(size=(H, Ns, E), device='cuda')
-    grad_out = torch.rand(size=(H, Nt, E), device='cuda')
+    mask = block_mask(
+        (Nt, Ns), block=granularity, sparsity=sparsity, device="cuda"
+    )
+    query = torch.rand(size=(H, Nt, E), device="cuda")
+    key = torch.rand(size=(H, Ns, E), device="cuda")
+    value = torch.rand(size=(H, Ns, E), device="cuda")
+    grad_out = torch.rand(size=(H, Nt, E), device="cuda")
 
     query.requires_grad = True
     key.requires_grad = True
@@ -75,7 +77,9 @@ def test_sparse_attention_operator(
 
     for random_seed in range(3):  # Test dynamic sparse
         query.grad, key.grad, value.grad = None, None, None
-        target_out = sparse_multi_head_attention_reference(query, key, value, mask)
+        target_out = sparse_multi_head_attention_reference(
+            query, key, value, mask
+        )
         target_out.backward(grad_out)
 
         target_grad_query = query.grad
@@ -87,10 +91,18 @@ def test_sparse_attention_operator(
         out.backward(grad_out)
 
         torch.testing.assert_close(out, target_out, atol=1e-4, rtol=1e-8)
-        torch.testing.assert_close(query.grad, target_grad_query, atol=1e-4, rtol=1e-8)
-        torch.testing.assert_close(key.grad, target_grad_key, atol=1e-4, rtol=1e-8)
-        torch.testing.assert_close(value.grad, target_grad_value, atol=1e-4, rtol=1e-8)
+        torch.testing.assert_close(
+            query.grad, target_grad_query, atol=1e-4, rtol=1e-8
+        )
+        torch.testing.assert_close(
+            key.grad, target_grad_key, atol=1e-4, rtol=1e-8
+        )
+        torch.testing.assert_close(
+            value.grad, target_grad_value, atol=1e-4, rtol=1e-8
+        )
 
         torch.manual_seed(random_seed)
-        mask = block_mask((Nt, Ns), block=granularity, sparsity=sparsity, device='cuda')
+        mask = block_mask(
+            (Nt, Ns), block=granularity, sparsity=sparsity, device="cuda"
+        )
         sparse_attention.update_mask(mask)
