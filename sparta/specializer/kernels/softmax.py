@@ -100,7 +100,7 @@ class SparseSoftmaxForwardKernel(SparseSoftmaxKernel):
                 y,
                 block=block,
                 grid=grid,
-                stream=sparta.default_pycuda_stream,
+                stream=sparta.current_pycuda_stream[torch.device("cuda")],
             )
             return y
 
@@ -170,7 +170,7 @@ class SparseSoftmaxBackwardKernel(SparseSoftmaxKernel):
                 x,
                 block=block,
                 grid=grid,
-                stream=sparta.default_pycuda_stream,
+                stream=sparta.current_pycuda_stream[torch.device("cuda")],
             )
             return x
 

@@ -188,7 +188,9 @@ class SparseMatMulKernel(KernelBase):
                     N_32,
                     block=block,
                     grid=grid,
-                    stream=sparta.default_pycuda_stream,
+                    # Note that for a CUDA device without a specified index, i.e., ``torch.device('cuda')``, this will return the current default CUDA  device if :attr:`optional` is ``True``.
+                    # Reference: https://github.com/pytorch/pytorch/blob/ff4aac109a990e64d82fb73b5af5fa5e69278580/torch/cuda/_utils.py
+                    stream=sparta.current_pycuda_stream[torch.device("cuda")],
                 )
                 return C
 
@@ -206,7 +208,7 @@ class SparseMatMulKernel(KernelBase):
                     N_32,
                     block=block,
                     grid=grid,
-                    stream=sparta.default_pycuda_stream,
+                    stream=sparta.current_pycuda_stream[torch.device("cuda")],
                 )
                 return C
 

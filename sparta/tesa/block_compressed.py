@@ -286,7 +286,7 @@ class BCSFunctionContext(TeSAFunctionContext):
             np.int32(W),
             block=self._index_block_dim,
             grid=(col_num, row_num, 1),
-            stream=sparta.default_pycuda_stream,
+            stream=sparta.current_pycuda_stream[torch.device("cuda")],
         )
         row_ptr = torch.cumsum(row_ptr, dim=0, dtype=torch.int32)
         col_ptr = torch.cumsum(col_ptr, dim=0, dtype=torch.int32)
@@ -301,7 +301,7 @@ class BCSFunctionContext(TeSAFunctionContext):
             extra_buffer,
             block=(1, 1, 1),
             grid=(col_num, row_num, 1),
-            stream=sparta.default_pycuda_stream,
+            stream=sparta.current_pycuda_stream[torch.device("cuda")],
         )
         return BCSRCIndexes(
             self,
@@ -331,7 +331,7 @@ class BCSFunctionContext(TeSAFunctionContext):
             np.int32(W),
             block=self._index_block_dim,
             grid=(col_num, row_num, 1),
-            stream=sparta.default_pycuda_stream,
+            stream=sparta.current_pycuda_stream[torch.device("cuda")],
         )
         row_ptr = torch.cumsum(row_ptr, dim=0, dtype=torch.int32)
         block_nnz = row_ptr[-1].item()
@@ -342,7 +342,7 @@ class BCSFunctionContext(TeSAFunctionContext):
             extra_buffer,
             block=(1, 1, 1),
             grid=(col_num, row_num, 1),
-            stream=sparta.default_pycuda_stream,
+            stream=sparta.current_pycuda_stream[torch.device("cuda")],
         )
         return BCSRIndexes(
             self,
@@ -370,7 +370,7 @@ class BCSFunctionContext(TeSAFunctionContext):
             np.int32(W),
             block=self._index_block_dim,
             grid=(col_num, row_num, 1),
-            stream=sparta.default_pycuda_stream,
+            stream=sparta.current_pycuda_stream[torch.device("cuda")],
         )
         col_ptr = torch.cumsum(col_ptr, dim=0, dtype=torch.int32)
         block_nnz = col_ptr[-1].item()
@@ -381,7 +381,7 @@ class BCSFunctionContext(TeSAFunctionContext):
             extra_buffer,
             block=(1, 1, 1),
             grid=(col_num, row_num, 1),
-            stream=sparta.default_pycuda_stream,
+            stream=sparta.current_pycuda_stream[torch.device("cuda")],
         )
         return BCSCIndexes(
             self,
@@ -420,7 +420,7 @@ class BCSFunctionContext(TeSAFunctionContext):
             np.int32(W),
             block=self._convert_block_dim,
             grid=(block_nnz, batch_size, 1),
-            stream=sparta.default_pycuda_stream,
+            stream=sparta.current_pycuda_stream[torch.device("cuda")],
         )
         return sparse_val.reshape(dense_shape[:-2] + (-1,))
 
@@ -450,7 +450,7 @@ class BCSFunctionContext(TeSAFunctionContext):
             np.int32(W),
             block=self._convert_block_dim,
             grid=(block_nnz, batch_size, 1),
-            stream=sparta.default_pycuda_stream,
+            stream=sparta.current_pycuda_stream[torch.device("cuda")],
         )
         return dense.reshape(sparse_shape[:-1] + (H, W))
 
@@ -478,7 +478,7 @@ class BCSFunctionContext(TeSAFunctionContext):
             np.int32(H),
             block=self._sum_block_dim,
             grid=(row_num, batch_size, 1),
-            stream=sparta.default_pycuda_stream,
+            stream=sparta.current_pycuda_stream[torch.device("cuda")],
         )
         return result.reshape(sparse_shape[:-1] + (H,))
 
@@ -508,7 +508,7 @@ class BCSFunctionContext(TeSAFunctionContext):
             np.int32(W),
             block=self._sum_block_dim,
             grid=(col_num, batch_size, 1),
-            stream=sparta.default_pycuda_stream,
+            stream=sparta.current_pycuda_stream[torch.device("cuda")],
         )
         return result.reshape(sparse_shape[:-1] + (W,))
 
