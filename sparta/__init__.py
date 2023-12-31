@@ -20,7 +20,7 @@ import sys
 # Reference: https://stackoverflow.com/a/35904211/5555077
 this = sys.modules[__name__]
 this.current_pycuda_stream: dict[torch.device, pycuda.driver.Stream]
-this.current_stream: dict[torch.device, torch.cuda.Stream]
+this.current_stream: dict[torch.device, torch.cuda.StreamContext]
 
 
 def simple_initialize_current_streams():
@@ -42,21 +42,31 @@ def simple_initialize_current_streams():
         this.current_pycuda_stream[
             torch.device(f"cuda:{i}")
         ] = pycuda.driver.Stream()
-        this.current_stream[torch.device(f"cuda:{i}")] = torch.cuda.Stream(
-            stream_ptr=this.current_pycuda_stream[
-                torch.device(f"cuda:{i}")
-            ].handle
+        this.current_stream[torch.device(f"cuda:{i}")] = torch.cuda.stream(
+            torch.cuda.Stream(
+                stream_ptr=this.current_pycuda_stream[
+                    torch.device(f"cuda:{i}")
+                ].handle,
+                device="cuda:{i}",
+            )
         )
 
     torch.cuda.set_device(0)
-    torch.cuda.set_stream(this.current_stream[torch.device(f"cuda:{0}")])
+    torch.cuda.set_stream(
+        this.current_stream[torch.device(f"cuda:{0}")].stream
+    )
 
 
 try:
     import intrasm_engine
 
-    this.current_pycuda_stream = intrasm_engine.current_pycuda_stream
-    this.current_stream = intrasm_engine.current_stream
+    this.current_pycuda_stream = [
+        stream.current_pycuda_stream
+        for stream in intrasm_engine.current_stream
+    ]
+    this.current_stream = [
+        stream.current_torch_stream for stream in intrasm_engine.current_stream
+    ]
 except ImportError:
     simple_initialize_current_streams()
 
