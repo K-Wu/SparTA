@@ -39,9 +39,9 @@ def simple_initialize_current_streams():
     this.current_pycuda_stream = {}
     this.current_stream = {}
     for i in range(num_gpus):
-        this.current_pycuda_stream[
-            torch.device(f"cuda:{i}")
-        ] = pycuda.driver.Stream()
+        this.current_pycuda_stream[torch.device(f"cuda:{i}")] = (
+            pycuda.driver.Stream()
+        )
         this.current_stream[torch.device(f"cuda:{i}")] = torch.cuda.stream(
             torch.cuda.Stream(
                 stream_ptr=this.current_pycuda_stream[
@@ -60,13 +60,14 @@ def simple_initialize_current_streams():
 try:
     import intrasm_engine
 
-    this.current_pycuda_stream = [
-        stream.current_pycuda_stream
-        for stream in intrasm_engine.current_stream
-    ]
-    this.current_stream = [
-        stream.current_torch_stream for stream in intrasm_engine.current_stream
-    ]
+    this.current_pycuda_stream = {
+        device: stream.current_pycuda_stream
+        for device, stream in intrasm_engine.current_stream.items()
+    }
+    this.current_stream = {
+        device: stream.current_torch_stream
+        for device, stream in intrasm_engine.current_stream.items()
+    }
 except ImportError:
     simple_initialize_current_streams()
 
