@@ -47,7 +47,7 @@ def simple_initialize_current_streams():
                 stream_ptr=this.current_pycuda_stream[
                     torch.device(f"cuda:{i}")
                 ].handle,
-                device="cuda:{i}",
+                device=f"cuda:{i}",
             )
         )
 
@@ -61,11 +61,11 @@ try:
     import intrasm_engine
 
     this.current_pycuda_stream = {
-        device: stream.current_pycuda_stream
+        device: stream.pycuda_stream
         for device, stream in intrasm_engine.current_stream.items()
     }
     this.current_stream = {
-        device: stream.current_torch_stream
+        device: stream.torch_stream
         for device, stream in intrasm_engine.current_stream.items()
     }
 except ImportError:
